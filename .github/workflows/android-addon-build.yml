@@ -52,6 +52,7 @@ jobs:
           echo "ANDROID_NDK_ROOT=$SDK_ROOT/ndk/22.1.7171670" >> $GITHUB_ENV
 
       - name: Build ffmpeg-kit for Android (${{ github.event.inputs.build_arch }})
+        id: build_ffmpeg_kit
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
@@ -95,6 +96,13 @@ jobs:
           cd gdextension_build
           scons platform=android target=template_debug ffmpeg_path="${{ steps.locate.outputs.ffroot }}" debug_symbols=no
           scons platform=android target=template_release ffmpeg_path="${{ steps.locate.outputs.ffroot }}" debug_symbols=no
+
+      - name: Upload build log on failure
+        if: failure() && steps.build_ffmpeg_kit.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-kit-build-log
+          path: ffmpeg-kit/build.log
 
       - name: Upload addons artifact
         uses: actions/upload-artifact@v4
