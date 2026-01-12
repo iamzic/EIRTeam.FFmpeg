@@ -22,7 +22,7 @@ def get_ffmpeg_install_targets(env, target_dir):
     if env["platform"] == "linuxbsd" or env["platform"] == "linux":
         return [os.path.join(target_dir, f"lib{lib}.so.{version}") for lib, version in ffmpeg_versions.items()]
     elif env["platform"] == "android":
-        return [os.path.join(target_dir, f"lib{lib}.so") for lib in ffmpeg_versions] + [os.path.join(target_dir, f"libgdffmpeg.android.template_debug.arm64.so")]
+        return [os.path.join(target_dir, f"lib{lib}.so") for lib in ffmpeg_versions]
     elif env["platform"] == "macos":
         return [os.path.join(target_dir, f"lib{lib}.dylib") for lib in ffmpeg_versions]
     else:
@@ -33,7 +33,7 @@ def get_ffmpeg_install_sources(env, source_dir):
     if env["platform"] in ("linuxbsd", "linux"):
         return [os.path.join(source_dir, f"lib/lib{lib}.so") for lib in ffmpeg_versions]
     elif env["platform"] == "android":
-        return [os.path.join(source_dir, f"lib/lib{lib}.so") for lib in ffmpeg_versions] + [os.path.join(source_dir, "lib/libgdffmpeg.android.template_debug.arm64.so")]
+        return [os.path.join(source_dir, f"lib/lib{lib}.so") for lib in ffmpeg_versions]
     elif env["platform"] == "macos":
         return [os.path.join(source_dir, f"lib/lib{lib}.dylib") for lib in ffmpeg_versions]
     else:
