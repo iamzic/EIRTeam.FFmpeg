@@ -77,13 +77,35 @@ jobs:
         id: locate
         run: |
           set -euo pipefail
-          ROOT=$(dirname "$(find ffmpeg-kit/android/prebuilt -type f -name libavcodec.so -path '*arm64*' | head -n1)")/..
-          if [ ! -d "$ROOT/include" ] || [ ! -d "$ROOT/lib" ]; then
-            echo "Could not locate prebuilt include/lib under: $ROOT" >&2
-            find ffmpeg-kit/android/prebuilt -maxdepth 4 -type d -printf '%p\n' | sed -n '1,200p'
+          # As per ffmpeg-kit docs, android.sh creates the prebuilt dir at the root of the submodule
+          ROOT_SEARCH_PATH="ffmpeg-kit/prebuilt"
+
+          if [ ! -d "$ROOT_SEARCH_PATH" ]; then
+            echo "Error: The ffmpeg-kit prebuilt directory was not found at '$ROOT_SEARCH_PATH'" >&2
+            echo "Listing contents of 'ffmpeg-kit' to debug:" >&2
+            ls -la ffmpeg-kit
             exit 1
           fi
+
+          # Find the directory containing libavcodec.so for arm64
+          SO_PATH=$(find "$ROOT_SEARCH_PATH" -type f -name libavcodec.so -path '*arm64*' | head -n1)
+          if [ -z "$SO_PATH" ]; then
+            echo "Error: libavcodec.so for arm64 not found in '$ROOT_SEARCH_PATH'" >&2
+            echo "Listing contents of '$ROOT_SEARCH_PATH' to debug:" >&2
+            find "$ROOT_SEARCH_PATH" -maxdepth 4
+            exit 1
+          fi
+
+          # The root path should contain 'include' and 'lib' directories
+          ROOT=$(dirname "$SO_PATH")/..
+          if [ ! -d "$ROOT/include" ] || [ ! -d "$ROOT/lib" ]; then
+            echo "Could not locate prebuilt include/ and lib/ directories under the discovered root: $ROOT" >&2
+            find "$ROOT_SEARCH_PATH" -maxdepth 4
+            exit 1
+          fi
+
           REALROOT=$(readlink -f "$ROOT")
+          echo "Found FFmpeg prebuilt root at: $REALROOT"
           echo "ffroot=$REALROOT" >> $GITHUB_OUTPUT
 
       - name: Build Godot GDExtension (Android)
