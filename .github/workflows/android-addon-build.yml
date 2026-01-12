@@ -17,8 +17,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Update Submodules
-        run: git submodule update --init --recursive --force
+      - name: Reset and update submodules
+        run: |
+          git submodule deinit -f ffmpeg-kit
+          rm -rf .git/modules/ffmpeg-kit
+          rm -rf ffmpeg-kit
+          git submodule update --init --remote ffmpeg-kit
+          git submodule update --init --recursive gdextension_build/godot-cpp
 
       - name: Install build dependencies
         run: |
