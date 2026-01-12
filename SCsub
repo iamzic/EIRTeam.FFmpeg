@@ -34,7 +34,10 @@ else:
     # mingw
     env.Append(LIBS=ffmpeg_libs)
 
-ffmpeg_install_action = ffmpeg_download.ffmpeg_install(env_ffmpeg, "#bin", ffmpeg_path)
+if env["platform"] == "android":
+    ffmpeg_install_action = ffmpeg_download.ffmpeg_install(env_ffmpeg, "#addons/ffmpeg/android", ffmpeg_path)
+else:
+    ffmpeg_install_action = ffmpeg_download.ffmpeg_install(env_ffmpeg, "#bin", ffmpeg_path)
 
 env_ffmpeg.GLSL_HEADER("yuv_to_rgb.glsl")
 env_ffmpeg.Depends(Glob("*.glsl.gen.h"), ["#glsl_builders.py"])

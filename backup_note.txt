@@ -1,0 +1,1 @@
+Temporary note: build.sh adjusted for Windows/Git Bash usage. If issues persist, run via Git Bash explicitly: "C:\Program Files\Git\bin\bash.exe" -lc "./build.sh all android". This file can be deleted.

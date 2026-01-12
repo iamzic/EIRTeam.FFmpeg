@@ -7,6 +7,7 @@ import SCons
 
 FFMPEG_DOWNLOAD_WIN64 = "https://github.com/EIRTeam/FFmpeg-Builds/releases/download/autobuild-2023-07-24-08-52/ffmpeg-N-111611-g5b11ee9429-win64-lgpl-godot.tar.xz"
 FFMPEG_DOWNLOAD_LINUX64 = "https://github.com/EIRTeam/FFmpeg-Builds/releases/download/autobuild-2023-07-24-08-52/ffmpeg-N-111611-g5b11ee9429-linux64-lgpl-godot.tar.xz"
+FFMPEG_DOWNLOAD_ANDROID64 = "https://github.com/EIRTeam/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-android-arm64-lgpl-godot.tar.xz"
 ffmpeg_versions = {
     "avcodec": "60",
     "avfilter": "9",
@@ -21,7 +22,7 @@ def get_ffmpeg_install_targets(env, target_dir):
     if env["platform"] == "linuxbsd" or env["platform"] == "linux":
         return [os.path.join(target_dir, f"lib{lib}.so.{version}") for lib, version in ffmpeg_versions.items()]
     elif env["platform"] == "android":
-        return [os.path.join(target_dir, f"lib{lib}.so") for lib in ffmpeg_versions]
+        return [os.path.join(target_dir, f"lib{lib}.so") for lib in ffmpeg_versions] + [os.path.join(target_dir, f"libgdffmpeg.android.template_debug.arm64.so")]
     elif env["platform"] == "macos":
         return [os.path.join(target_dir, f"lib{lib}.dylib") for lib in ffmpeg_versions]
     else:
@@ -29,8 +30,10 @@ def get_ffmpeg_install_targets(env, target_dir):
 
 
 def get_ffmpeg_install_sources(env, source_dir):
-    if env["platform"] in ("linuxbsd", "linux", "android"):
+    if env["platform"] in ("linuxbsd", "linux"):
         return [os.path.join(source_dir, f"lib/lib{lib}.so") for lib in ffmpeg_versions]
+    elif env["platform"] == "android":
+        return [os.path.join(source_dir, f"lib/lib{lib}.so") for lib in ffmpeg_versions] + [os.path.join(source_dir, "lib/libgdffmpeg.android.template_debug.arm64.so")]
     elif env["platform"] == "macos":
         return [os.path.join(source_dir, f"lib/lib{lib}.dylib") for lib in ffmpeg_versions]
     else:
@@ -39,10 +42,11 @@ def get_ffmpeg_install_sources(env, source_dir):
 
 def get_download_url(env):
     if env["platform"] == "linuxbsd" or env["platform"] == "linux":
-        FFMPEG_DOWNLOAD_URL = FFMPEG_DOWNLOAD_LINUX64
+        return FFMPEG_DOWNLOAD_LINUX64
+    elif env["platform"] == "android":
+        return FFMPEG_DOWNLOAD_ANDROID64
     else:
-        FFMPEG_DOWNLOAD_URL = FFMPEG_DOWNLOAD_WIN64
-    return FFMPEG_DOWNLOAD_URL
+        return FFMPEG_DOWNLOAD_WIN64
 
 
 def download_ffmpeg(target, source, env):
@@ -81,7 +85,7 @@ def _ffmpeg_emitter(target, source, env):
     target += get_ffmpeg_install_sources(env, dst)
     if env["platform"] == "windows":
         target += [os.path.join(dst, f"lib/{lib}.lib") for lib, version in ffmpeg_versions.items()]
-    else:
+    elif env["platform"] != "android":
         target += [os.path.join(dst, f"lib/lib{lib}.so") for lib, version in ffmpeg_versions.items()]
 
     emitter_headers = [

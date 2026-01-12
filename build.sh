@@ -2,12 +2,27 @@
 
 # Exit on error
 set -e
+set -x
+echo "Starting build script..."
 
 # User defined variables
 TARGET=${1:-"all"}
 PLATFORM=${2:-"linux"}
 SCONS_VERSION=${3:-"4.4.0"}
-FFMPEG_RELATIVE_PATH=${4:-"ffmpeg-master-latest-linux64-lgpl-godot"}
+FFMPEG_RELATIVE_PATH=${4:-""}
+
+case ${PLATFORM} in
+    "android")
+        FFMPEG_RELATIVE_PATH=${FFMPEG_RELATIVE_PATH:-"ffmpeg-master-latest-android-arm64-lgpl-godot"}
+        ;;
+    "linux")
+        FFMPEG_RELATIVE_PATH=${FFMPEG_RELATIVE_PATH:-"ffmpeg-master-latest-linux64-lgpl-godot"}
+        ;;
+    *)
+        echo "Unsupported platform: ${PLATFORM}"
+        exit 1
+        ;;
+esac
 FFMPEG_URL_OR_PATH=${5:-"https://github.com/EIRTeam/FFmpeg-Builds/releases/\
 download/latest/${FFMPEG_RELATIVE_PATH}.tar.xz"}
 FFMPEG_TARBALL_PATH=${6:-"ffmpeg.tar.xz"}
@@ -36,6 +51,20 @@ can_copy() {
     fi
 }
 
+download_file() {
+    # Args: $1=url $2=output_path
+    local url="$1"
+    local out="$2"
+    if command -v wget >/dev/null 2>&1; then
+        wget -q --show-progress -O "$out" "$url"
+    elif command -v curl >/dev/null 2>&1; then
+        curl -L --progress-bar -o "$out" "$url"
+    else
+        echo "Error: neither wget nor curl is available to download $url" >&2
+        return 1
+    fi
+}
+
 setup() {
     echo "Setting up to build for ${TARGET} with SCons ${SCONS_VERSION}"
 
@@ -54,7 +83,17 @@ setup() {
         else
             echo "Downloading FFmpeg..."
             # Download FFmpeg
-            wget -q --show-progress -O ${FFMPEG_TARBALL_PATH} ${FFMPEG_URL_OR_PATH}
+            download_file "${FFMPEG_URL_OR_PATH}" "${FFMPEG_TARBALL_PATH}"
+        fi
+        # Validate archive (guard against GitHub HTML error pages downloaded as .tar.xz)
+        if ! tar -tf "${FFMPEG_TARBALL_PATH}" >/dev/null 2>&1; then
+            echo "Error: Downloaded file '${FFMPEG_TARBALL_PATH}' is not a valid tar archive." >&2
+            echo "The URL may be wrong or blocked. You can: " >&2
+            echo " - Manually download the Android FFmpeg tar.xz from the Releases page and pass its local path as the 5th arg to build.sh" >&2
+            echo " - Or set the FFMPEG_URL_OR_PATH env/arg to a local .tar.xz path" >&2
+            echo "First 200 bytes of the file for debugging:" >&2
+            head -c 200 "${FFMPEG_TARBALL_PATH}" || true
+            exit 1
         fi
         # Extract FFmpeg
         tar -xf ${FFMPEG_TARBALL_PATH}
@@ -67,7 +106,11 @@ setup() {
     echo "Setting up SCons"
     # Set up virtual environment
     python -m venv venv
-    source venv/bin/activate
+    if [[ -f "venv/Scripts/activate" ]]; then # For Windows (Git Bash)
+        source venv/Scripts/activate
+    else # For Linux/macOS
+        source venv/bin/activate
+    fi
     # Upgrade pip
     pip install --upgrade pip
     # Install SCons
@@ -90,16 +133,21 @@ build() {
     export FFMPEG_PATH="${PWD}/${FFMPEG_RELATIVE_PATH}"
 
     # Enter virtual environment
-    source venv/bin/activate
+    if [[ -f "venv/Scripts/activate" ]]; then # For Windows (Git Bash)
+        source venv/Scripts/activate
+    else # For Linux/macOS
+        source venv/bin/activate
+    fi
     # Enter build directory
     pushd ${BUILD_DIR}
     # Build
     scons \
-        platform=linux target=${TARGET} \
+        --debug=explain \
+        platform=${PLATFORM} target=${TARGET} \
         ffmpeg_path=${FFMPEG_PATH} \
         ${SCONS_FLAGS}
     # Show build results
-    ls -R build/addons/ffmpeg
+    ls -R build/addons/ffmpeg || echo "Build directory not found or ls failed." 
 
     # Exit build directory
     popd
@@ -129,4 +177,6 @@ else
     echo "${TARGET} build completed."
     cleanup
 fi
+
+read -p "Press [Enter] key to continue..."
 
